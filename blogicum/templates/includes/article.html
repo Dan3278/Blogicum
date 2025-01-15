@@ -1,0 +1,12 @@
+<article>
+  <div class="container py-5">
+    <ul>
+      <li>Место: {{ post.location.name }}</li>
+      <li>Дaта: {{ post.date }}</li>
+      <li>Kатегория: <a href="{% url 'blog:category_posts' post.category.slug %}">
+          {{ post.category.title}}</a>
+      </li>
+    </ul>
+    {% include "includes/post_card.html" %}
+  <div>
+</article>
