@@ -1,53 +1,48 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
+from django.views.generic import (CreateView,
+                                  DeleteView,
+                                  DetailView,
+                                  ListView,
+                                  UpdateView,)
 
 from .forms import CreateCommentForm, CreatePostForm
 from .models import Category, Comment, Post, User
-from .mixins import (CommentEditMixin, PostsEditMixin)
+from .mixins import (CommentEditMixin,
+                     PostsEditMixin,
+                     CommentAuthorRequiredMixin,
+                     AuthorRequiredMixin)
 from .utils import (filter_published_posts)
 
 PAGINATED_BY = 10
 
 
-class PostDeleteView(PostsEditMixin, LoginRequiredMixin, DeleteView):
+class PostDeleteView(PostsEditMixin,
+                     LoginRequiredMixin,
+                     AuthorRequiredMixin,
+                     DeleteView):
     model = Post
     success_url = reverse_lazy('blog:index')
-    pk_url_kwarg = 'post_id'
 
     def delete(self, request, *args, **kwargs):
-        post = get_object_or_404(Post, pk=self.kwargs[self.pk_url_kwarg])
+        post = self.get_object()
         if self.request.user != post.author:
             return redirect('blog:index')
-
         return super().delete(request, *args, **kwargs)
 
 
-class PostUpdateView(PostsEditMixin, LoginRequiredMixin, UpdateView):
+class PostUpdateView(PostsEditMixin,
+                     LoginRequiredMixin,
+                     AuthorRequiredMixin,
+                     UpdateView):
     form_class = CreatePostForm
-    model = Post
-    pk_url_kwarg = 'post_id'
-
-    def dispatch(self, request, *args, **kwargs):
-        post = get_object_or_404(Post, pk=self.kwargs[self.pk_url_kwarg])
-        if self.request.user != post.author:
-            return redirect('blog:post_detail',
-                            post_id=self.kwargs[self.pk_url_kwarg])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_success_url(self):
-        return reverse('blog:post_detail',
-                       args=[self.kwargs[self.pk_url_kwarg]])
+    success_url = reverse_lazy('blog:index')
 
 
-class PostCreateView(PostsEditMixin, LoginRequiredMixin, CreateView):
+class PostCreateView(PostsEditMixin,
+                     LoginRequiredMixin,
+                     CreateView):
     model = Post
     form_class = CreatePostForm
 
@@ -56,13 +51,24 @@ class PostCreateView(PostsEditMixin, LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
-        return reverse(
-            'blog:profile',
-            args=[self.request.user.username]
-        )
+        return reverse('blog:profile', args=[self.request.user.username])
 
 
-class CommentCreateView(CommentEditMixin, LoginRequiredMixin, CreateView):
+def form_valid(self, form):
+    form.instance.author = self.request.user
+    return super().form_valid(form)
+
+
+def get_success_url(self) -> str:
+    return reverse(
+        'blog:profile',
+        args=[self.request.user.username]
+    )
+
+
+class CommentCreateView(CommentEditMixin,
+                        LoginRequiredMixin,
+                        CreateView):
     model = Comment
     form_class = CreateCommentForm
 
@@ -75,25 +81,29 @@ class CommentCreateView(CommentEditMixin, LoginRequiredMixin, CreateView):
 class CommentDeleteView(CommentEditMixin, LoginRequiredMixin, DeleteView):
     model = Comment
     pk_url_kwarg = 'comment_id'
+    success_url = reverse_lazy('blog:index')
+    template_name = 'blog/comment.html'
 
     def delete(self, request, *args, **kwargs):
-        comment = get_object_or_404(Comment, pk=self.kwargs[self.pk_url_kwarg])
+        comment = self.get_object()
+
         if self.request.user != comment.author:
             return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
+
         return super().delete(request, *args, **kwargs)
 
+    def get(self, request, *args, **kwargs):
+        comment = self.get_object()
+        return self.render_to_response({'comment': comment})
 
-class CommentUpdateView(CommentEditMixin, LoginRequiredMixin, UpdateView):
+
+class CommentUpdateView(CommentEditMixin,
+                        CommentAuthorRequiredMixin,
+                        LoginRequiredMixin,
+                        UpdateView):
     model = Comment
     form_class = CreateCommentForm
     pk_url_kwarg = 'comment_id'
-
-    def dispatch(self, request, *args, **kwargs):
-        comment = get_object_or_404(Comment, pk=self.kwargs[self.pk_url_kwarg])
-        if self.request.user != comment.author:
-            return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
-
-        return super().dispatch(request, *args, **kwargs)
 
 
 class AuthorProfileListView(ListView):
@@ -101,18 +111,18 @@ class AuthorProfileListView(ListView):
     template_name = 'blog/profile.html'
     paginate_by = PAGINATED_BY
 
+    def get_author(self):
+        return get_object_or_404(User, username=self.kwargs['username'])
+
     def get_queryset(self):
-        author = get_object_or_404(User, username=self.kwargs['username'])
-        posts = author.posts.all()
-        if self.request.user != author:
-            posts = filter_published_posts(posts)
-        return posts
+        author = self.get_author()
+        return author.posts.all()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = get_object_or_404(
-            User, username=self.kwargs['username']
-        )
+        context['profile'] = self.get_author()
+        for post in context['object_list']:
+            post.comment_count = post.comments.count()
         return context
 
 
@@ -122,7 +132,14 @@ class BlogIndexListView(ListView):
     context_object_name = 'post_list'
     paginate_by = PAGINATED_BY
 
-    queryset = filter_published_posts(Post.objects)
+    def get_queryset(self):
+        return filter_published_posts(Post.objects.all())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        for post in context['post_list']:
+            post.comment_count = post.comments.count()
+        return context
 
 
 class BlogCategoryListView(ListView):
@@ -153,10 +170,13 @@ class PostDetailView(DetailView):
         return context
 
     def get_object(self, queryset=None):
-        post = get_object_or_404(Post, pk=self.kwargs.get(self.pk_url_kwarg))
+        post_id = self.kwargs[self.pk_url_kwarg]
+        post = get_object_or_404(Post, pk=post_id)
+
         if self.request.user == post.author:
             return post
+
         return get_object_or_404(
             filter_published_posts(Post.objects.all()),
-            pk=self.kwargs.get(self.pk_url_kwarg)
+            pk=post_id
         )

@@ -18,18 +18,10 @@ class CreatePostForm(forms.ModelForm):
 
     class Meta:
         model = Post
-        fields = (
-            'title',
-            'image',
-            'text',
-            'pub_date',
-            'location',
-            'category',
-            'is_published',
-        )
+        exclude = ('author',)
 
 
 class CreateCommentForm(forms.ModelForm):
     class Meta:
         model = Comment
-        fields = ("text",)
+        fields = ('text',)

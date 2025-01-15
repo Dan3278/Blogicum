@@ -21,30 +21,24 @@ class PublishedModel(models.Model):
         abstract = True
 
 
-class BaseTitle(models.Model):
-    """Базовая модель заголовка."""
-
-    title = models.CharField(max_length=256, verbose_name='Заголовок')
-
-    class Meta:
-        abstract = True
-
-
 class Location(PublishedModel):
     """Местоположение."""
 
     name = models.CharField(max_length=256, verbose_name='Название места')
 
     class Meta:
+        ordering = ['name']
         verbose_name = 'местоположение'
         verbose_name_plural = 'Местоположения'
 
     def __str__(self) -> str:
-        return self.name
+        return self.name[:20]
 
 
-class Category(PublishedModel, BaseTitle):
-
+class Category(PublishedModel):
+    title = models.CharField(
+        max_length=256,
+        verbose_name='Заголовок')
     description = models.TextField(verbose_name='Описание')
     slug = models.SlugField(
         unique=True,
@@ -54,6 +48,7 @@ class Category(PublishedModel, BaseTitle):
     )
 
     class Meta:
+        ordering = ['title']
         verbose_name = 'категория'
         verbose_name_plural = 'Категории'
 
@@ -66,14 +61,16 @@ class Category(PublishedModel, BaseTitle):
         )
 
 
-class Post(PublishedModel, BaseTitle):
+class Post(PublishedModel):
+    title = models.CharField(
+        max_length=256,
+        verbose_name='Заголовок')
     text = models.TextField(verbose_name='Текст')
     pub_date = models.DateTimeField(
         verbose_name='Дата и время публикации',
         help_text=(
             'Если установить дату и время в будущем — можно делать '
-            'отложенные публикации.'
-        ),
+            'отложенные публикации.'),
     )
     author = models.ForeignKey(
         User,

@@ -41,7 +41,7 @@ urlpatterns: List[URLPattern] = [
     path(
         'posts/<int:post_id>/edit_comment/<int:comment_id>/',
         views.CommentUpdateView.as_view(),
-        name="edit_comment",
+        name='edit_comment',
     ),
     path(
         'posts/<int:post_id>/delete_comment/<int:comment_id>/',
