@@ -25,3 +25,11 @@ class CreateCommentForm(forms.ModelForm):
     class Meta:
         model = Comment
         fields = ('text',)
+
+    def __init__(self, *args, **kwargs):
+        super(CreateCommentForm, self).__init__(*args, **kwargs)
+        self.fields['text'].widget = forms.Textarea(attrs={
+            'rows': 4,
+            'cols': 35,
+            'placeholder': 'Введите ваш комментарий...',
+        })

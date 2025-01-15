@@ -112,7 +112,7 @@ class Comment(models.Model):
         related_name='comments',
     )
     post = models.ForeignKey(
-        Post,
+        'Post',
         on_delete=models.CASCADE,
         verbose_name='Пост',
         related_name='comments',
@@ -131,4 +131,4 @@ class Comment(models.Model):
         ordering = ('created_at',)
 
     def __str__(self):
-        return self.text[:20]
+        return self.text[:20] 

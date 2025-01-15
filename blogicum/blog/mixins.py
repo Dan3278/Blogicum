@@ -1,5 +1,7 @@
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse
 from django.shortcuts import redirect
+
 from .models import Comment, Post
 
 
@@ -38,3 +40,14 @@ class CommentAuthorRequiredMixin:
         if self.request.user != comment.author:
             return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
+
+class CommentAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
+    model = Comment
+    pk_url_kwarg = 'comment_id'
+
+    def test_func(self):
+        comment = self.get_object()
+        return self.request.user == comment.author or self.request.user.is_staff
+
+    def handle_no_permission(self):
+        return redirect('blog:index')

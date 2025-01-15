@@ -2,9 +2,9 @@ from django.db.models import Count
 from django.utils import timezone
 
 
-def filter_published_posts(posts,
-                           include_comment_count=False,
-                           include_select_related=False):
+def get_published_posts(posts,
+                        include_comment_count=False,
+                        include_select_related=False):
     filtered_posts = posts.filter(
         is_published=True,
         pub_date__lte=timezone.now(),
@@ -21,4 +21,8 @@ def filter_published_posts(posts,
             'category', 'author', 'location'
         )
 
-    return filtered_posts.order_by('-pub_date')
+    ordering = posts.model._meta.ordering
+    if ordering:
+        return filtered_posts.order_by(*ordering)
+
+    return filtered_posts
